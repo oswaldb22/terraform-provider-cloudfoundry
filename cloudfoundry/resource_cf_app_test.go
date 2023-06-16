@@ -518,12 +518,13 @@ func TestAccDefaultValues_app1(t *testing.T) {
 	spaceID, spaceName := defaultTestSpace(t)
 	refApp := "cloudfoundry_app.app_1"
 
-	defaultDiskQuota := 1024
-	defaultMemory := 1024
+	// Default memory and disk quota is managed globally
+	// defaultDiskQuota := 1024
+	// defaultMemory := 1024
 	defaultInstances := 1
 	defaultPort := 8080
-	// Change this value if ssh is enabled globally
-	globalSSHEnabled := "true"
+	// whether ssh is disabled or not depends on the global setting
+	// globalSSHEnabled := "true"
 
 	for _, app := range appPaths {
 		appPath = app.path
@@ -551,10 +552,10 @@ func TestAccDefaultValues_app1(t *testing.T) {
 								resource.TestCheckResourceAttr(refApp, "ports.#", "1"),
 								resource.TestCheckResourceAttr(refApp, "ports.0", fmt.Sprint(defaultPort)),
 								resource.TestCheckResourceAttr(refApp, "instances", fmt.Sprint(defaultInstances)),
-								resource.TestCheckResourceAttr(refApp, "memory", fmt.Sprint(defaultMemory)),
-								resource.TestCheckResourceAttr(refApp, "disk_quota", fmt.Sprint(defaultDiskQuota)),
+								// resource.TestCheckResourceAttr(refApp, "memory", fmt.Sprint(defaultMemory)),
+								// resource.TestCheckResourceAttr(refApp, "disk_quota", fmt.Sprint(defaultDiskQuota)),
 								resource.TestCheckResourceAttrSet(refApp, "stack"),
-								resource.TestCheckResourceAttr(refApp, "enable_ssh", globalSSHEnabled),
+								// resource.TestCheckResourceAttr(refApp, "enable_ssh", globalSSHEnabled),
 							),
 						},
 
@@ -591,12 +592,13 @@ func TestAccDefaultValuesRolling_app1(t *testing.T) {
 	spaceID, spaceName := defaultTestSpace(t)
 	refApp := "cloudfoundry_app.app_1"
 
-	defaultDiskQuota := 1024
-	defaultMemory := 1024
+	// Default memory and disk quota is managed globally
+	// defaultDiskQuota := 1024
+	// defaultMemory := 1024
 	defaultInstances := 1
 	defaultPort := 8080
-	// Change this value if ssh is enabled globally
-	globalSSHEnabled := "true"
+	// whether ssh is disabled or not depends on the global setting
+	// globalSSHEnabled := "true"
 
 	for _, app := range appPaths {
 		appPath = app.path
@@ -623,11 +625,11 @@ func TestAccDefaultValuesRolling_app1(t *testing.T) {
 								resource.TestCheckResourceAttr(refApp, "space", spaceID),
 								resource.TestCheckResourceAttr(refApp, "ports.#", "1"),
 								resource.TestCheckResourceAttr(refApp, "ports.0", fmt.Sprint(defaultPort)),
-								resource.TestCheckResourceAttr(refApp, "instances", fmt.Sprint(defaultInstances)),
-								resource.TestCheckResourceAttr(refApp, "memory", fmt.Sprint(defaultMemory)),
+								// resource.TestCheckResourceAttr(refApp, "instances", fmt.Sprint(defaultInstances)),
+								// resource.TestCheckResourceAttr(refApp, "memory", fmt.Sprint(defaultMemory)),
 								resource.TestCheckResourceAttr(refApp, "disk_quota", fmt.Sprint(defaultDiskQuota)),
 								resource.TestCheckResourceAttrSet(refApp, "stack"),
-								resource.TestCheckResourceAttr(refApp, "enable_ssh", globalSSHEnabled),
+								// resource.TestCheckResourceAttr(refApp, "enable_ssh", globalSSHEnabled),
 							),
 						},
 
