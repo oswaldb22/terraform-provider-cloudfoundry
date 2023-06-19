@@ -625,9 +625,9 @@ func TestAccDefaultValuesRolling_app1(t *testing.T) {
 								resource.TestCheckResourceAttr(refApp, "space", spaceID),
 								resource.TestCheckResourceAttr(refApp, "ports.#", "1"),
 								resource.TestCheckResourceAttr(refApp, "ports.0", fmt.Sprint(defaultPort)),
-								// resource.TestCheckResourceAttr(refApp, "instances", fmt.Sprint(defaultInstances)),
+								resource.TestCheckResourceAttr(refApp, "instances", fmt.Sprint(defaultInstances)),
 								// resource.TestCheckResourceAttr(refApp, "memory", fmt.Sprint(defaultMemory)),
-								resource.TestCheckResourceAttr(refApp, "disk_quota", fmt.Sprint(defaultDiskQuota)),
+								// resource.TestCheckResourceAttr(refApp, "disk_quota", fmt.Sprint(defaultDiskQuota)),
 								resource.TestCheckResourceAttrSet(refApp, "stack"),
 								// resource.TestCheckResourceAttr(refApp, "enable_ssh", globalSSHEnabled),
 							),
@@ -1167,74 +1167,6 @@ func TestAccResApp_app_bluegreen(t *testing.T) {
 				},
 			},
 		})
-}
-
-func TestAccResApp_app_bluegreen(t *testing.T) {
-
-	spaceID, _ := defaultTestSpace(t)
-
-	refApp := "cloudfoundry_app.dummy-app"
-
-	for _, app := range appPaths {
-		appPath = app.path
-
-		t.Run(fmt.Sprintf("AppSource=%s", app.typeOfPath), func(t *testing.T) {
-			appDeploy := &appdeployers.AppDeploy{}
-			resource.Test(t,
-				resource.TestCase{
-					PreCheck:          func() { testAccPreCheck(t) },
-					ProviderFactories: testAccProvidersFactories,
-					CheckDestroy:      testAccCheckAppDestroyed([]string{"dummy-app"}),
-					Steps: []resource.TestStep{
-
-						resource.TestStep{
-							Config: fmt.Sprintf(appResourceBlueGreen,
-								defaultAppDomain(),
-								spaceID, spaceID,
-								"1",
-								appPath,
-							),
-							Check: resource.ComposeTestCheckFunc(
-								testAccCheckAppExistsInject(refApp, appDeploy, func() (err error) {
-
-									if err = assertHTTPResponse("https://dummy-app-tf."+defaultAppDomain(), 200, nil); err != nil {
-										return err
-									}
-									return
-								}),
-							),
-						},
-
-						resource.TestStep{
-							Config: fmt.Sprintf(appResourceBlueGreen,
-								defaultAppDomain(),
-								spaceID, spaceID,
-								"2",
-								appPath,
-							),
-							Check: resource.ComposeTestCheckFunc(
-								func(s *terraform.State) error {
-									err := assertHTTPResponse("https://dummy-app-tf."+defaultAppDomain(), 200, nil)
-									if err != nil {
-										return err
-									}
-									rs, ok := s.RootModule().Resources[refApp]
-									if !ok {
-										return fmt.Errorf("app '%s' not found in terraform state", refApp)
-									}
-
-									id := rs.Primary.ID
-									if id == appDeploy.App.GUID {
-										return fmt.Errorf("After blue green deployment, app must have changed but GUID are the same between previous and update")
-									}
-									return nil
-								},
-							),
-						},
-					},
-				})
-		})
-	}
 }
 
 func testAccCheckAppExistsInject(resApp string, appDeploy *appdeployers.AppDeploy, validate func() error) resource.TestCheckFunc {
