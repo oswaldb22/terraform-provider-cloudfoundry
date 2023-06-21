@@ -461,7 +461,7 @@ var appPaths = []struct {
 	path       string
 }{
 	{typeOfPath: "local", path: asset("dummy-app.zip")},
-	// {typeOfPath: "remote", path: "https://raw.githubusercontent.com/cloudfoundry-community/terraform-provider-cloudfoundry/main/tests/cf-acceptance-tests/assets/dummy-app.zip"},
+	{typeOfPath: "remote", path: "https://raw.githubusercontent.com/cloudfoundry-community/terraform-provider-cloudfoundry/main/tests/cf-acceptance-tests/assets/dummy-app.zip"},
 }
 
 func TestAccResAppVersions_app1(t *testing.T) {
