@@ -62,24 +62,26 @@ func resourceApp() *schema.Resource {
 				Set:      resourceIntegerSet,
 			},
 			"instances": &schema.Schema{
-				Type:     schema.TypeInt,
-				Optional: true,
-				Default:  1,
+				Type:             schema.TypeInt,
+				Optional:         true,
+				Default:          1,
+				DiffSuppressFunc: diffSuppressOnStoppedApps,
 			},
 			"memory": &schema.Schema{
-				Type:     schema.TypeInt,
-				Optional: true,
-				Computed: true,
+				Type:             schema.TypeInt,
+				Optional:         true,
+				Computed:         true,
+				DiffSuppressFunc: diffSuppressOnStoppedApps,
 			},
 			"disk_quota": &schema.Schema{
-				Type:     schema.TypeInt,
-				Optional: true,
-				Computed: true,
+				Type:             schema.TypeInt,
+				Optional:         true,
+				Computed:         true,
+				DiffSuppressFunc: diffSuppressOnStoppedApps,
 			},
 			"stack": &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: true,
 				Computed: true,
 			},
 			"buildpack": &schema.Schema{
@@ -133,9 +135,10 @@ func resourceApp() *schema.Resource {
 				Optional: true,
 			},
 			"docker_image": &schema.Schema{
-				Type:          schema.TypeString,
-				Optional:      true,
-				ConflictsWith: []string{"path"},
+				Type:             schema.TypeString,
+				Optional:         true,
+				ConflictsWith:    []string{"path"},
+				DiffSuppressFunc: diffSuppressOnStoppedApps,
 			},
 			"docker_credentials": &schema.Schema{
 				Type:          schema.TypeMap,
@@ -215,25 +218,29 @@ func resourceApp() *schema.Resource {
 				Sensitive: true,
 			},
 			"health_check_http_endpoint": &schema.Schema{
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
+				Type:             schema.TypeString,
+				Optional:         true,
+				Computed:         true,
+				DiffSuppressFunc: diffSuppressOnStoppedApps,
 			},
 			"health_check_type": &schema.Schema{
-				Type:         schema.TypeString,
-				Optional:     true,
-				Default:      "port",
-				ValidateFunc: validateAppV3HealthCheckType,
+				Type:             schema.TypeString,
+				Optional:         true,
+				Default:          "port",
+				ValidateFunc:     validateAppV3HealthCheckType,
+				DiffSuppressFunc: diffSuppressOnStoppedApps,
 			},
 			"health_check_timeout": &schema.Schema{
-				Type:     schema.TypeInt,
-				Optional: true,
-				Computed: true,
+				Type:             schema.TypeInt,
+				Optional:         true,
+				Computed:         true,
+				DiffSuppressFunc: diffSuppressOnStoppedApps,
 			},
 			"health_check_invocation_timeout": &schema.Schema{
-				Type:     schema.TypeInt,
-				Optional: true,
-				Computed: true,
+				Type:             schema.TypeInt,
+				Optional:         true,
+				Computed:         true,
+				DiffSuppressFunc: diffSuppressOnStoppedApps,
 			},
 			"id_bg": &schema.Schema{
 				Type:     schema.TypeString,
@@ -244,7 +251,10 @@ func resourceApp() *schema.Resource {
 		},
 
 		CustomizeDiff: func(ctx context.Context, diff *schema.ResourceDiff, meta interface{}) error {
-			if diff.HasChange("docker_image") || diff.HasChange("path") {
+			session := meta.(*managers.Session)
+			deployer := session.Deployer.Strategy(diff.Get("strategy").(string))
+
+			if (diff.HasChange("docker_image") || diff.HasChange("path")) && !deployer.IsCreateNewApp() {
 				oldImg, newImg := diff.GetChange("docker_image")
 				oldPath, newPath := diff.GetChange("path")
 				if oldImg == "" && newImg != "" && newPath == "" {
@@ -257,12 +267,20 @@ func resourceApp() *schema.Resource {
 			if diff.Id() == "" {
 				return nil
 			}
-			session := meta.(*managers.Session)
-			deployer := session.Deployer.Strategy(diff.Get("strategy").(string))
+
 			if IsAppRestageNeeded(diff) ||
 				(deployer.IsCreateNewApp() && IsAppRestartNeeded(diff)) ||
 				(deployer.IsCreateNewApp() && IsAppCodeChange(diff)) {
-				diff.SetNewComputed("id_bg")
+				if stopped, ok := diff.GetOk("stopped"); ok {
+					if !stopped.(bool) {
+						diff.SetNewComputed("id_bg")
+					}
+				}
+			}
+
+			if diff.HasChange("stack") && !deployer.IsCreateNewApp() {
+				// Not b/g
+				diff.ForceNew("stack")
 			}
 
 			return nil
@@ -288,6 +306,16 @@ func validateV3Strategy(v interface{}, k string) (ws []string, errs []error) {
 			fmt.Errorf("%q must be one of '%s' or 'none'", k, strings.Join(names, "', '")))
 	}
 	return ws, errs
+}
+
+// suppress diff on process/droplet related attributes
+func diffSuppressOnStoppedApps(k, old, new string, d *schema.ResourceData) bool {
+	if stopped, ok := d.GetOk("stopped"); ok {
+		if stopped.(bool) {
+			return true
+		}
+	}
+	return false
 }
 
 func resourceAppCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -376,8 +404,9 @@ func resourceAppRead(ctx context.Context, d *schema.ResourceData, meta interface
 	// ProcessToResourceData(d, proc)
 
 	// droplet sync through V3 API
+	// Do nothing if droplet is not found
 	droplet, _, err := session.ClientV3.GetApplicationDropletCurrent(d.Id())
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "Droplet not found") {
 		return diag.FromErr(err)
 	}
 
@@ -570,6 +599,7 @@ func resourceAppUpdate(ctx context.Context, d *schema.ResourceData, meta interfa
 			appDeploy.ServiceBindings = bindings
 		}
 
+		// TODO: poll for app state after starting/stopping
 		if d.HasChange("stopped") {
 			// Update application state
 			stopApplication := d.Get("stopped").(bool)
